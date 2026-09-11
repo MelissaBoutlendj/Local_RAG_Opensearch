@@ -1,1 +1,1 @@
-# mri-dl-internship-preparation
+# local-rag-opensearch
