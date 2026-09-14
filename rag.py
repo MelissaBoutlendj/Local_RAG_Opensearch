@@ -8,18 +8,27 @@ from sentence_transformers import SentenceTransformer
 client = OpenSearch(hosts=[{"host": "localhost", "port": 9200}])
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-question = "What is the capital of Mongolia?"
+question = "What is the ROSES framework?"
 
 # --- RETRIEVAL : on retrouve les chunks les plus proches de la question ---
 question_vector = model.encode(question).tolist()
 
 response = client.search(
     index="documents",
+    params={"search_pipeline": "nlp-search-pipeline"},
     body={
         "size": 3,
-        "query": {"knn": {"embedding": {"vector": question_vector, "k": 3}}}
+        "query": {
+            "hybrid": {
+                "queries": [
+                    {"match": {"text": question}},
+                    {"knn": {"embedding": {"vector": question_vector, "k": 3}}}
+                ]
+            }
+        }
     }
 )
+
 
 # On colle les 3 chunks bout a bout pour former le contexte.
 context = "\n\n".join(hit["_source"]["text"] for hit in response["hits"]["hits"])
@@ -42,3 +51,7 @@ answer = ollama.chat(
 )
 
 print(answer["message"]["content"])
+
+print("\n--- Sources ---")
+for hit in response["hits"]["hits"]:
+    print(f"[{hit['_score']:.3f}] {hit['_source']['filename']}: {hit['_source']['text'][:120]}...")
